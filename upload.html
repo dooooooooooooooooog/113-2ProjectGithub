@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>Cloudinary 上傳示範</title>
+</head>
+<body>
+  <h1>請選擇圖片並上傳</h1>
+  <input type="file" id="fileInput" accept="image/*" />
+  <button id="btnUpload">上傳</button>
+  <p id="txtStatus"></p>
+
+  <script>
+    // 1. 確認腳本有載入
+    console.log('upload.html 腳本已載入');
+
+    const cloudName    = 'dhitgg34o';
+    const uploadPreset = 'unsigned_preset';
+    const analyzeUrl = 'http://localhost:5000/analyze';  // 改成 Flask
+
+    // 2. 確認可以找到按鈕元素
+    const btn = document.getElementById('btnUpload');
+    if (!btn) {
+      console.error('找不到 #btnUpload 元素！請檢查 id 是否正確');
+    } else {
+      console.log('#btnUpload 綁定成功');
+    }
+
+    btn.onclick = async () => {
+      console.log('上傳按鈕被點擊');
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) {
+        alert('請先選擇檔案！');
+        return;
+      }
+      console.log('檔案已選擇：', file.name);
+
+      const statusEl = document.getElementById('txtStatus');
+      statusEl.innerText = '上傳中…';
+
+      const form = new FormData();
+      form.append('file', file);
+      form.append('upload_preset', uploadPreset);
+
+      try {
+        console.log('開始呼叫 Cloudinary API');
+        const res  = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          { method: 'POST', body: form }
+        );
+        console.log('Cloudinary 回應狀態：', res.status);
+        const data = await res.json();
+        console.log('Cloudinary 回傳資料：', data);
+
+        const imageUrl = data.secure_url;
+        statusEl.innerHTML =
+          `✔ 上傳完成！<br>圖片 URL：<a href="${imageUrl}" target="_blank">${imageUrl}</a>`;
+
+        console.log('開始呼叫後端 /analyze');
+        const analyzeRes = await fetch(analyzeUrl, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ imageUrl })
+        });
+        console.log('/analyze 回應狀態：', analyzeRes.status);
+        if (analyzeRes.ok) {
+          statusEl.innerHTML += '<br>✅ 已通知伺服器並開始分析';
+        } else {
+          statusEl.innerHTML += `<br>❌ 分析伺服器錯誤：${analyzeRes.status}`;
+        }
+      } catch (err) {
+        console.error('上傳或通知過程發生錯誤：', err);
+        statusEl.innerText = '❌ 上傳或通知失敗，請檢查主控台錯誤';
+      }
+    };
+  </script>
+</body>
+</html>
